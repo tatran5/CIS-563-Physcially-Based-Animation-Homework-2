@@ -122,6 +122,20 @@ public:
 	    //  ASSIGNMENT /////////////////////////////////////////////////// 
 	    //  Add you code to construct local elasticity matrix K_local
 	    /////////////////////////////////////////////// //////////////////
+			Eigen::Matrix<T,dim,dim> I = Eigen::Matrix<T,dim,dim>::Identity(); 
+			Eigen::Matrix<T,dim,dim> nn = n * n.transpose();
+            Eigen::Matrix<T,dim,dim> K = E * (1.f / l0 - 1.f / l) *  (I - nn) + E / l0 * nn;
+            Eigen::Matrix<T,dim * 2, dim * 2> K_local;
+            // Construct K_local = [-K    K]
+            //                     [K    -K]
+            for (int row = 0; row < dim; row ++) {
+            	for (int col = 0; col < dim; dim ++) {
+            		K_local[row, col] = -K[row, col];
+            		K_local[row, col + dim] = K[row, col];
+            		K_local[row + dim, col] = K[row, col];
+            		K_local[row + dim, col + dim] = -K[row, col];
+            	}
+            }
 
 	    ////////////////////////////////////////////////////////////////// 
 	    //  ASSIGNMENT /////////////////////////////////////////////////// 
@@ -129,6 +143,21 @@ public:
 	    //  Note that you need to take care of dirichlet-0 nodes in the
 	    //     corresponding row and columns (by keeping those entries 0)
 	    /////////////////////////////////////////////// //////////////////
+            A += G;
+            A += K;
+
+            for (int p = 0; p < 2; p++) {
+            	for (int q = 0; q < 2; q ++) {
+            		if (!rhs.node_is_fixed(particle[p]) && !rhs.node_is_fixed(particle[q])) {
+            			for (int i = 0; i < dim; i++) {
+            				for (int j = 0; j < dim; j++) {
+            					A.coeffRef(dim * particle[p] + i, 
+            						dim * particle[q] + j) -= K_local[dim, j];
+            				}
+            			}
+            		}
+            	}
+            }
         }
 
         // process dirichlet-0 nodes at the diagonal of A
